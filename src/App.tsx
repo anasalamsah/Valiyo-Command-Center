@@ -97,13 +97,29 @@ export default function App() {
 
   // Fetch full system state
   const fetchState = useCallback(async () => {
+    const targetEndpoint = '/api/state';
     try {
       setRefreshing(true);
-      const res = await fetch('/api/state');
+      console.log(`[Valiyo OS] Memuat data sistem awal dari endpoint: ${targetEndpoint}`);
+      const res = await fetch(targetEndpoint);
       if (!res.ok) {
+        console.error(
+          `[Valiyo OS] Gagal memuat data sistem. Endpoint: "${targetEndpoint}", HTTP Status: ${res.status} (${res.statusText})`
+        );
         throw new Error(`Gagal memuat data sistem (${res.status})`);
       }
       const data = await res.json();
+      console.log(
+        `[Valiyo OS] Sukses memuat data sistem dari ${targetEndpoint}:`,
+        {
+          productsCount: (data.products || []).length,
+          customersCount: data.customersCount ?? (data.customers ? data.customers.length : 0),
+          transactionsCount: data.transactionsCount ?? (data.transactions ? data.transactions.length : 0),
+          expensesCount: (data.expenses || []).length,
+          employeesCount: (data.employees || []).length,
+          freelancersCount: (data.freelancers || []).length
+        }
+      );
       setHealth(data.health);
       setForecast(data.forecast);
       setInsights(data.insights);
@@ -129,7 +145,7 @@ export default function App() {
       setTransactionsCount(data.transactionsCount || (data.transactions ? data.transactions.length : 0));
       setError(null);
     } catch (err: any) {
-      console.error('Fetch state error:', err);
+      console.error(`[Valiyo OS] Error saat fetch state (${targetEndpoint}):`, err);
       setError(err.message || 'Terjadi kesalahan jaringan');
     } finally {
       setLoading(false);
