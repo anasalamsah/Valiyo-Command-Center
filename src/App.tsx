@@ -14,6 +14,7 @@ import { CustomersView } from './components/CustomersView.js';
 import { TransactionsView } from './components/TransactionsView.js';
 import { SpendingsView } from './components/SpendingsView.js';
 import { TeamTalentView } from './components/TeamTalentView.js';
+import { SettingsView } from './components/SettingsView.js';
 import { QuickAddModal } from './components/QuickAddModal.js';
 import { AskValiyoModal } from './components/AskValiyoModal.js';
 import { HealthFormulaModal } from './components/HealthFormulaModal.js';
@@ -22,6 +23,10 @@ import { CreateTaskModal } from './components/CreateTaskModal.js';
 import { IntelligenceView } from './components/IntelligenceView.js';
 import { AIWorkforceView } from './components/AIWorkforceView.js';
 import { DataQualityModal } from './components/DataQualityModal.js';
+import {
+  saveStateToLocalStorage,
+  loadStateFromLocalStorage
+} from './utils/localStorageStore.js';
 import {
   HealthScoreBreakdown,
   RevenueForecast,
@@ -147,6 +152,34 @@ export default function App() {
       setCustomersCount(data.customersCount || (data.customers ? data.customers.length : 0));
       setTransactionsCount(data.transactionsCount || (data.transactions ? data.transactions.length : 0));
       setError(null);
+
+      // Simpan snapshot ke local storage browser untuk perlindungan ganda (offline & cold-start recovery)
+      saveStateToLocalStorage({
+        transactions: data.transactions,
+        customers: data.customers,
+        products: data.products,
+        expenses: data.expenses,
+        employees: data.employees,
+        freelancers: data.freelancers,
+        tasks: data.tasks,
+        b2bDeals: data.b2bDeals,
+        goals: data.goals,
+        decisions: data.decisions
+      });
+
+      // Deteksi jika server baru reboot kosong di hosting serverless tetapi browser memiliki data riil sebelumnya
+      const localData = loadStateFromLocalStorage();
+      const serverEmpty = (!data.transactions || data.transactions.length === 0) && (!data.expenses || data.expenses.length === 0);
+      const localHasRealData = localData && ((localData.transactions && localData.transactions.length > 0) || (localData.expenses && localData.expenses.length > 0));
+
+      if (serverEmpty && localHasRealData) {
+        console.log('[Valiyo OS] Rehidrasi otomatis data riil dari browser ke instance serverless Vercel...');
+        fetch('/api/sync/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localData)
+        }).catch(e => console.warn('[Valiyo OS] Rehidrasi otomatis tertunda:', e));
+      }
     } catch (err: any) {
       console.error(`[Valiyo OS] Error saat fetch state (${targetEndpoint}):`, err);
       setError(err.message || 'Terjadi kesalahan jaringan');
@@ -695,11 +728,27 @@ export default function App() {
             />
           )}
 
+          {currentTab === 'settings' && (
+            <SettingsView
+              transactions={transactions}
+              customers={customers}
+              products={products}
+              expenses={expenses}
+              employees={employees}
+              freelancers={freelancers}
+              tasks={tasks}
+              b2bDeals={b2bDeals}
+              goals={goals}
+              decisions={decisions}
+              isDemoMode={isDemoMode}
+              onRefresh={fetchState}
+            />
+          )}
+
           {(currentTab === 'funnel' ||
             currentTab === 'content' ||
             currentTab === 'experiments' ||
-            currentTab === 'analytics' ||
-            currentTab === 'settings') && (
+            currentTab === 'analytics') && (
             <PlaceholderView
               tab={currentTab}
               onNavigateTab={setCurrentTab}

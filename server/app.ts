@@ -31,6 +31,7 @@ import {
 } from "./services/intelligence.js";
 import { Task, Goal, B2BDeal, DecisionItem, Product, AIInsight, Customer, Transaction, AIAgent, Expense, Employee, Freelancer, MonthlyReferralRecap, FreelancerPayoutSummary } from "../src/types.js";
 import { getReferralPayoutSchedule, formatRupiah } from "../src/utils/formatters.js";
+import { saveDatabaseToDisk, loadDatabaseFromDisk, ValiyoDatabase } from "./storage.js";
 
 export const app = express();
 
@@ -106,6 +107,43 @@ let freelancers: Freelancer[] = [
   }
 ];
 
+// Helper to save complete database state to persistent disk/storage
+function persistState() {
+  saveDatabaseToDisk({
+    transactions,
+    customers,
+    products,
+    expenses,
+    employees,
+    freelancers,
+    tasks,
+    b2bDeals,
+    goals,
+    decisions,
+    isDemoMode
+  });
+}
+
+// Auto-load persisted database from disk if available on server boot
+try {
+  const persistedDb = loadDatabaseFromDisk();
+  if (persistedDb) {
+    if (Array.isArray(persistedDb.transactions)) transactions = persistedDb.transactions;
+    if (Array.isArray(persistedDb.customers)) customers = persistedDb.customers;
+    if (Array.isArray(persistedDb.products)) products = persistedDb.products;
+    if (Array.isArray(persistedDb.expenses)) expenses = persistedDb.expenses;
+    if (Array.isArray(persistedDb.employees) && persistedDb.employees.length > 0) employees = persistedDb.employees;
+    if (Array.isArray(persistedDb.freelancers) && persistedDb.freelancers.length > 0) freelancers = persistedDb.freelancers;
+    if (Array.isArray(persistedDb.tasks) && persistedDb.tasks.length > 0) tasks = persistedDb.tasks;
+    if (Array.isArray(persistedDb.b2bDeals)) b2bDeals = persistedDb.b2bDeals;
+    if (Array.isArray(persistedDb.goals) && persistedDb.goals.length > 0) goals = persistedDb.goals;
+    if (Array.isArray(persistedDb.decisions)) decisions = persistedDb.decisions;
+    if (persistedDb.isDemoMode !== undefined) isDemoMode = persistedDb.isDemoMode;
+  }
+} catch (e) {
+  console.warn('[Valiyo] Could not load persisted database on start:', e);
+}
+
 // Tarik data revenue dari buku transaksi & sinkronisasi histori keuangan
 function recalculateRevenueAndMonthlyHistory() {
   const completedTxs = transactions.filter(t => t.status !== 'REFUNDED');
@@ -164,6 +202,7 @@ function recalculateRevenueAndMonthlyHistory() {
 
   // Sinkronisasi produk ekosistem
   syncProductsFromTransactions();
+  persistState();
 }
 
 // Sinkronisasi produk ekosistem langsung dari daftar transaksi
@@ -578,6 +617,81 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ==========================================
+// DATA SYNC & CLOUD RESTORE ENDPOINTS (FOR VERCEL & SERVERLESS PERSISTENCE)
+// ==========================================
+
+// POST /api/sync/restore - Rehydrate server with complete client/backup state
+app.post('/api/sync/restore', (req, res) => {
+  try {
+    const {
+      transactions: inTx,
+      customers: inCust,
+      products: inProd,
+      expenses: inExp,
+      employees: inEmp,
+      freelancers: inFree,
+      tasks: inTasks,
+      b2bDeals: inDeals,
+      goals: inGoals,
+      decisions: inDec,
+      isDemoMode: inDemo
+    } = req.body || {};
+
+    if (Array.isArray(inTx)) transactions = inTx;
+    if (Array.isArray(inCust)) customers = inCust;
+    if (Array.isArray(inProd)) products = inProd;
+    if (Array.isArray(inExp)) expenses = inExp;
+    if (Array.isArray(inEmp) && inEmp.length > 0) employees = inEmp;
+    if (Array.isArray(inFree) && inFree.length > 0) freelancers = inFree;
+    if (Array.isArray(inTasks) && inTasks.length > 0) tasks = inTasks;
+    if (Array.isArray(inDeals)) b2bDeals = inDeals;
+    if (Array.isArray(inGoals) && inGoals.length > 0) goals = inGoals;
+    if (Array.isArray(inDec)) decisions = inDec;
+    if (inDemo !== undefined) isDemoMode = inDemo;
+
+    recalculateRevenueAndMonthlyHistory();
+    persistState();
+
+    const derived = getSystemState();
+    res.json({
+      success: true,
+      message: 'State berhasil disinkronkan dan dipulihkan',
+      counts: {
+        transactions: transactions.length,
+        customers: customers.length,
+        expenses: expenses.length,
+        employees: employees.length,
+        freelancers: freelancers.length,
+        tasks: tasks.length
+      },
+      systemState: derived
+    });
+  } catch (err: any) {
+    console.error('Error syncing state:', err);
+    res.status(500).json({ error: err.message || 'Gagal sinkronisasi data' });
+  }
+});
+
+// GET /api/sync/backup - Download complete current snapshot
+app.get('/api/sync/backup', (req, res) => {
+  res.json({
+    version: 1,
+    timestamp: new Date().toISOString(),
+    isDemoMode,
+    transactions,
+    customers,
+    products,
+    expenses,
+    employees,
+    freelancers,
+    tasks,
+    b2bDeals,
+    goals,
+    decisions
+  });
+});
+
 // GET /api/state - Full Command Center Business State
 app.get('/api/state', (req, res) => {
   try {
@@ -661,6 +775,7 @@ app.post('/api/expenses', (req, res) => {
   };
 
   expenses.unshift(newExpense);
+  persistState();
   res.status(201).json({
     expense: newExpense,
     systemState: getSystemState(),
@@ -675,6 +790,7 @@ app.delete('/api/expenses/:id', (req, res) => {
   if (expenses.length === initialLen) {
     return res.status(404).json({ error: 'Catatan pengeluaran tidak ditemukan' });
   }
+  persistState();
   res.json({
     success: true,
     systemState: getSystemState(),
@@ -684,6 +800,7 @@ app.delete('/api/expenses/:id', (req, res) => {
 
 app.post('/api/expenses/clear', (req, res) => {
   expenses = [];
+  persistState();
   res.json({
     success: true,
     systemState: getSystemState(),
@@ -733,6 +850,7 @@ app.post('/api/referrals/payouts/settle', (req, res) => {
     }
   });
 
+  persistState();
   res.json({
     success: true,
     updatedCount,
@@ -764,6 +882,7 @@ app.post('/api/referrals/payouts/revert', (req, res) => {
     }
   });
 
+  persistState();
   res.json({
     success: true,
     revertedCount,
@@ -808,6 +927,7 @@ app.post('/api/employees', (req, res) => {
   };
 
   employees.unshift(newEmployee);
+  persistState();
   res.status(201).json({
     employee: newEmployee,
     message: 'Karyawan baru berhasil ditambahkan'
@@ -825,6 +945,7 @@ app.put('/api/employees/:id', (req, res) => {
     ...req.body,
     id
   };
+  persistState();
   res.json({
     employee: employees[idx],
     message: 'Data karyawan berhasil diperbarui'
@@ -838,6 +959,7 @@ app.delete('/api/employees/:id', (req, res) => {
   if (employees.length === initialLen) {
     return res.status(404).json({ error: 'Data karyawan tidak ditemukan' });
   }
+  persistState();
   res.json({
     success: true,
     message: 'Data karyawan berhasil dihapus'
@@ -879,6 +1001,7 @@ app.post('/api/freelancers', (req, res) => {
   };
 
   freelancers.unshift(newFreelancer);
+  persistState();
   res.status(201).json({
     freelancer: newFreelancer,
     message: 'Freelancer baru dengan kode referral berhasil ditambahkan'
@@ -905,6 +1028,7 @@ app.put('/api/freelancers/:id', (req, res) => {
     ...req.body,
     id
   };
+  persistState();
   res.json({
     freelancer: freelancers[idx],
     message: 'Data freelancer berhasil diperbarui'
@@ -918,6 +1042,7 @@ app.delete('/api/freelancers/:id', (req, res) => {
   if (freelancers.length === initialLen) {
     return res.status(404).json({ error: 'Freelancer tidak ditemukan' });
   }
+  persistState();
   res.json({
     success: true,
     message: 'Data freelancer berhasil dihapus'
@@ -959,6 +1084,7 @@ app.post('/api/demo/reset', (req, res) => {
     }
   }
   recalculateRevenueAndMonthlyHistory();
+  persistState();
 
   res.json({ success: true, message: 'Data demo realistis berhasil dimuat ulang' });
 });
@@ -978,6 +1104,7 @@ app.post('/api/demo/clear', (req, res) => {
   agentTeam = [];
   isDemoMode = false;
   recalculateRevenueAndMonthlyHistory();
+  persistState();
 
   res.json({ success: true, message: 'Database telah dibersihkan menjadi mode kosong' });
 });
@@ -1033,6 +1160,7 @@ app.post('/api/products', (req, res) => {
   };
 
   products.push(newProduct);
+  persistState();
   res.status(201).json(newProduct);
 });
 
@@ -1046,6 +1174,7 @@ app.patch('/api/products/:id', (req, res) => {
     ...req.body,
     updatedAt: new Date().toISOString().split('T')[0]
   };
+  persistState();
   res.json(products[index]);
 });
 
@@ -1055,11 +1184,13 @@ app.delete('/api/products/:id', (req, res) => {
     return res.status(404).json({ error: 'Produk tidak ditemukan' });
   }
   products.splice(index, 1);
+  persistState();
   res.json({ success: true, systemState: getSystemState() });
 });
 
 app.post('/api/products/clear', (req, res) => {
   products = [];
+  persistState();
   res.json({
     success: true,
     message: 'Data produk ekosistem telah dibersihkan (mulai dari 0)',
@@ -1069,6 +1200,7 @@ app.post('/api/products/clear', (req, res) => {
 
 app.post('/api/products/sync', (req, res) => {
   syncProductsFromTransactions();
+  persistState();
   res.json({
     success: true,
     products,
@@ -1117,6 +1249,7 @@ app.post('/api/customers', (req, res) => {
   };
 
   customers.unshift(newCustomer);
+  persistState();
   res.status(201).json(newCustomer);
 });
 
@@ -1129,6 +1262,7 @@ app.patch('/api/customers/:id', (req, res) => {
     ...customers[index],
     ...req.body
   };
+  persistState();
   res.json(customers[index]);
 });
 
@@ -1138,11 +1272,13 @@ app.delete('/api/customers/:id', (req, res) => {
     return res.status(404).json({ error: 'Pelanggan tidak ditemukan' });
   }
   customers.splice(index, 1);
+  persistState();
   res.json({ success: true });
 });
 
 app.post('/api/customers/clear', (req, res) => {
   customers = [];
+  persistState();
   res.json({ success: true, message: 'Daftar pelanggan telah dibersihkan (mulai dari 0)', systemState: getSystemState() });
 });
 
@@ -1286,6 +1422,7 @@ app.patch('/api/transactions/:id', (req, res) => {
   }
 
   transactions[index] = updatedTx;
+  persistState();
   res.json({ transaction: updatedTx, systemState: getSystemState() });
 });
 
@@ -1342,6 +1479,7 @@ app.post('/api/tasks', (req, res) => {
   };
 
   tasks.unshift(newTask);
+  persistState();
   res.status(201).json(newTask);
 });
 
@@ -1362,6 +1500,7 @@ app.patch('/api/tasks/:id', (req, res) => {
   }
 
   tasks[taskIndex] = updated;
+  persistState();
   res.json(updated);
 });
 
@@ -1371,6 +1510,7 @@ app.delete('/api/tasks/:id', (req, res) => {
     return res.status(404).json({ error: 'Task tidak ditemukan' });
   }
   tasks.splice(taskIndex, 1);
+  persistState();
   res.json({ success: true });
 });
 
@@ -1407,6 +1547,7 @@ app.post('/api/goals', (req, res) => {
   };
 
   goals.push(newGoal);
+  persistState();
   res.status(201).json(newGoal);
 });
 
@@ -1437,6 +1578,7 @@ app.patch('/api/goals/:id', (req, res) => {
     status: req.body.status || status
   };
 
+  persistState();
   res.json(goals[goalIndex]);
 });
 
@@ -1446,6 +1588,7 @@ app.delete('/api/goals/:id', (req, res) => {
     return res.status(404).json({ error: 'Goal tidak ditemukan' });
   }
   goals.splice(goalIndex, 1);
+  persistState();
   res.json({ success: true });
 });
 
@@ -1470,6 +1613,7 @@ app.post('/api/b2b', (req, res) => {
   };
 
   b2bDeals.push(newDeal);
+  persistState();
   res.status(201).json(newDeal);
 });
 
@@ -1484,6 +1628,7 @@ app.patch('/api/b2b/:id', (req, res) => {
     ...req.body
   };
 
+  persistState();
   res.json(b2bDeals[dealIndex]);
 });
 
@@ -1493,11 +1638,13 @@ app.delete('/api/b2b/:id', (req, res) => {
     return res.status(404).json({ error: 'Deal B2B tidak ditemukan' });
   }
   b2bDeals.splice(dealIndex, 1);
+  persistState();
   res.json({ success: true, systemState: getSystemState() });
 });
 
 app.post('/api/b2b/clear', (req, res) => {
   b2bDeals = [];
+  persistState();
   res.json({
     success: true,
     message: 'Pipeline B2B telah dibersihkan (mulai dari 0)',
@@ -1529,6 +1676,7 @@ app.post('/api/decisions', (req, res) => {
   };
 
   decisions.unshift(newDecision);
+  persistState();
   res.status(201).json(newDecision);
 });
 
