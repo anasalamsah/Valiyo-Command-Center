@@ -1,0 +1,515 @@
+export type NavTab =
+  | 'command'
+  | 'revenue'
+  | 'transactions'
+  | 'spending'
+  | 'products'
+  | 'customers'
+  | 'team'
+  | 'goals'
+  | 'b2b'
+  | 'tasks'
+  | 'intelligence'
+  | 'funnel'
+  | 'ai_workforce'
+  | 'content'
+  | 'experiments'
+  | 'analytics'
+  | 'alerts'
+  | 'knowledge'
+  | 'decisions'
+  | 'settings';
+
+export type ProductId = 'kids' | 'students' | 'skill' | 'teacher' | 'b2b' | string;
+
+export type ProductStatus = 'GROWING' | 'STABLE' | 'AT RISK' | 'DECLINING';
+
+export interface Product {
+  id: ProductId;
+  name: string;
+  category: string;
+  price: number;
+  status: ProductStatus;
+  description: string;
+  monthlyRevenue: number;
+  monthlyTarget: number;
+  monthlySales: number;
+  growthRate: number; // e.g. -0.14 = -14%
+  conversionRate: number; // e.g. 0.024 = 2.4%
+  previousConversionRate: number;
+  activeCustomers: number;
+  grossMargin: number; // percentage, e.g. 0.82 = 82%
+  funnel: {
+    visitors: number;
+    leads: number;
+    checkouts: number;
+    purchases: number;
+  };
+  recentActivities: {
+    id: string;
+    date: string;
+    action: string;
+    impact: string;
+  }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RevenueSource =
+  | 'Organic'
+  | 'Referral'
+  | 'Freelancer'
+  | 'Social Media'
+  | 'B2B'
+  | 'Partnership'
+  | 'Direct'
+  | 'Other';
+
+export interface Transaction {
+  id: string;
+  customerId: string;
+  customerName: string; // Buyer / Pembeli
+  buyerPhone?: string;  // HP Pembeli
+  buyerEmail?: string;  // Email Pembeli
+  productId: ProductId;
+  productName: string;  // Nama Produk
+  amount: number;       // Harga Produk
+  source: RevenueSource;
+  referrer?: string; // Nama / kode orang yang mereferalkan produk
+  status: 'COMPLETED' | 'PENDING' | 'REFUNDED';
+  date: string;
+}
+
+export type SpendingCategory =
+  | 'Subscribe AI'
+  | 'Software & Zoom'
+  | 'Komisi Freelancer'
+  | 'Operasional & Perlengkapan'
+  | 'Marketing & Ads'
+  | 'Lain-lain';
+
+export interface Expense {
+  id: string;
+  title: string;
+  category: SpendingCategory;
+  amount: number;
+  date: string;
+  recipient?: string;
+  paymentMethod?: 'Transfer Bank' | 'Kartu Kredit' | 'E-Wallet' | 'Kas';
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface SpendingSummary {
+  totalSpending: number;
+  spendingByCategory: Record<SpendingCategory, number>;
+  netCashFlow: number; // Total Revenue - Total Spending
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  role: string;
+  joinDate: string;
+  division: string;
+  status: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT';
+  email?: string;
+  phone?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface Freelancer {
+  id: string;
+  name: string;
+  code: string; // Kode referral unik, e.g. DIMAS-EDU
+  roleOrSkill: string;
+  joinDate: string;
+  commissionRate?: number; // e.g. 10 (persen) atau nominal
+  commissionType?: 'PERCENTAGE' | 'FIXED';
+  phone?: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  segment: 'Parent' | 'Student' | 'Professional' | 'Teacher' | 'School';
+  source: RevenueSource;
+  productsPurchased: ProductId[];
+  totalSpend: number;
+  status: 'ACTIVE' | 'CHURNED' | 'LEAD';
+  createdAt: string;
+}
+
+export type GoalLevel = 'YEAR' | 'QUARTER' | 'MONTH' | 'WEEK';
+export type GoalStatus = 'GREEN' | 'YELLOW' | 'RED';
+
+export interface Goal {
+  id: string;
+  name: string;
+  level: GoalLevel;
+  period: string; // e.g. '2026', 'Q3 2026', 'September 2026'
+  target: number;
+  actual: number;
+  achievementRate: number; // actual / target
+  status: GoalStatus;
+  owner: string;
+  deadline: string;
+  relatedTaskIds?: string[];
+}
+
+export type TaskPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type TaskStatus = 'BACKLOG' | 'TODO' | 'IN PROGRESS' | 'DONE' | 'BLOCKED';
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  category: 'Revenue' | 'B2B' | 'Product' | 'Operations' | 'Growth' | 'AI';
+  priority: TaskPriority;
+  impact: number; // 1 - 10
+  urgency: number; // 1 - 10
+  priorityScore: number; // impact * urgency
+  whyThisMatters: string;
+  expectedImpact: string;
+  owner: string;
+  status: TaskStatus;
+  dueDate: string;
+  relatedProduct?: ProductId;
+  relatedGoalId?: string;
+  createdBy: 'Anas' | 'AI Insight Engine' | 'Team';
+  createdAt: string;
+}
+
+export type B2BStage =
+  | 'PROSPECT'
+  | 'CONTACTED'
+  | 'MEETING'
+  | 'PROPOSAL'
+  | 'NEGOTIATION'
+  | 'WON'
+  | 'LOST'
+  | 'QUALIFIED'
+  | 'CLOSED_WON'
+  | 'CLOSED_LOST';
+
+export interface B2BDeal {
+  id: string;
+  institutionName: string;
+  contactPerson: string;
+  dealValue: number;
+  probability: number; // 0 to 1
+  stage: B2BStage;
+  expectedCloseDate: string;
+  owner: string;
+  notes: string;
+}
+
+export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
+
+export interface Alert {
+  id: string;
+  severity: AlertSeverity;
+  title: string;
+  whatHappened: string;
+  whyItMatters: string;
+  recommendedAction: string;
+  relatedModule?: string;
+  actionPayload?: {
+    suggestedTaskTitle?: string;
+    priority?: TaskPriority;
+    expectedImpact?: string;
+  };
+  createdAt: string;
+  resolved: boolean;
+}
+
+export interface ExecutiveInsight {
+  id: string;
+  severity: 'RED' | 'YELLOW' | 'GREEN';
+  title: string;
+  explanation: string;
+  businessImpact: string;
+  recommendedAction: string;
+  actionType: 'B2B' | 'PRODUCT' | 'TASK' | 'REVENUE';
+  suggestedTask?: {
+    title: string;
+    description: string;
+    priority: TaskPriority;
+    impact: number;
+    urgency: number;
+    expectedImpact: string;
+    whyThisMatters: string;
+  };
+}
+
+export interface HealthScoreBreakdown {
+  score: number; // 0 - 100
+  status: 'ON TRACK' | 'AT RISK' | 'OFF TRACK';
+  components: {
+    revenue: { weight: number; score: number; label: string; explanation: string };
+    growth: { weight: number; score: number; label: string; explanation: string };
+    product: { weight: number; score: number; label: string; explanation: string };
+    b2b: { weight: number; score: number; label: string; explanation: string };
+    customer: { weight: number; score: number; label: string; explanation: string };
+    execution: { weight: number; score: number; label: string; explanation: string };
+    operations: { weight: number; score: number; label: string; explanation: string };
+  };
+}
+
+export interface RevenueForecast {
+  annualTarget: number; // 1,000,000,000
+  ytdRevenue: number;
+  currentMonthRevenue: number;
+  monthlyTarget: number;
+  achievementPercentage: number;
+  requiredMonthlyRunRate: number;
+  historicalMonthlyAverage: number;
+  remainingMonths: number;
+  forecastB2C: number;
+  forecastB2BWeighted: number;
+  totalForecast: number;
+  forecastStatus: 'GREEN' | 'YELLOW' | 'RED';
+  methodology: string;
+}
+
+export interface DecisionItem {
+  id: string;
+  decision: string;
+  context: string;
+  reason: string;
+  expectedOutcome: string;
+  owner: string;
+  date: string;
+  reviewDate: string;
+  status: 'ACTIVE' | 'SUCCESS' | 'FAILED' | 'REVIEW';
+  result?: string;
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  category:
+    | 'Brand'
+    | 'Products'
+    | 'Pricing'
+    | 'Marketing'
+    | 'Sales'
+    | 'Operations'
+    | 'Curriculum'
+    | 'SOP'
+    | 'Strategy';
+  summary: string;
+  content: string;
+  lastUpdated: string;
+  author?: string;
+}
+
+export type KnowledgeDoc = KnowledgeDocument;
+
+export interface DailyBrief {
+  headline: string;
+  healthSummary: string;
+  revenuePace: number;
+  biggestOpportunity: string;
+  biggestRisk: string;
+  todayPriority: string;
+  doNotSpendTodayOn: string;
+}
+
+export interface MonthlyHistoryItem {
+  month: string; // 'Jan', 'Feb', etc.
+  revenue: number;
+  target: number;
+  b2cRevenue: number;
+  b2bRevenue: number;
+}
+
+// ==========================================
+// VALIYO OS V2 — AI INTELLIGENCE LAYER TYPES
+// ==========================================
+
+export type InsightType =
+  | 'REVENUE_OPPORTUNITY'
+  | 'REVENUE_RISK'
+  | 'PRODUCT_GROWTH'
+  | 'PRODUCT_DECLINE'
+  | 'CONVERSION_PROBLEM'
+  | 'CUSTOMER_OPPORTUNITY'
+  | 'B2B_OPPORTUNITY'
+  | 'B2B_RISK'
+  | 'EXECUTION_RISK'
+  | 'GOAL_RISK'
+  | 'GROWTH_OPPORTUNITY'
+  | 'OPERATIONAL_RISK';
+
+export type InsightSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type AIConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+export type InsightStatus = 'NEW' | 'ACKNOWLEDGED' | 'ACTED' | 'DISMISSED' | 'RESOLVED';
+export type DecisionFeedbackResult = 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'UNKNOWN';
+
+export interface ActionableTaskDraft {
+  title: string;
+  description: string;
+  category: 'Revenue' | 'B2B' | 'Product' | 'Operations' | 'Growth' | 'AI';
+  priority: TaskPriority;
+  impact: number;
+  urgency: number;
+  dueDate: string;
+  owner: string;
+  whyThisMatters: string;
+  expectedImpact: string;
+  relatedProduct?: ProductId;
+  relatedGoalId?: string;
+}
+
+export interface AIInsight {
+  id: string;
+  type: InsightType;
+  severity: InsightSeverity;
+  title: string;
+  fact: string; // Grounded metric from the database
+  inference: string; // Systematic conclusion derived from fact
+  recommendation: string; // Prescribed tactical intervention
+  expectedImpact: string;
+  confidence: AIConfidence;
+  confidenceExplanation: string;
+  relatedProduct?: ProductId;
+  relatedGoal?: string;
+  relatedModule?: string;
+  createdAt: string;
+  status: InsightStatus;
+  userDecision?: 'ACTED' | 'DISMISSED' | 'SAVED';
+  feedbackResult?: DecisionFeedbackResult;
+  feedbackNote?: string;
+  dataUsed: string[];
+  calculation?: string;
+  reasoningSummary?: string;
+  priorityScore: number; // (Impact * Urgency * Strategic * Confidence) / Effort
+  isTopPriority?: boolean; // Rank #1 item
+  whyThisIsTop?: string; // Explicit explanation for #1 ranking
+  actionableTaskDraft?: ActionableTaskDraft;
+}
+
+export interface DataQualityCheck {
+  id: string;
+  category: 'COMPLETENESS' | 'CONSISTENCY' | 'FRESHNESS' | 'INTEGRITY';
+  name: string;
+  status: 'PASS' | 'WARNING' | 'FAIL';
+  scoreImpact: number; // negative deduction
+  details: string;
+}
+
+export interface DataQualityReport {
+  score: number; // 0 - 100
+  status: 'HIGH' | 'ACCEPTABLE' | 'DEGRADED';
+  completeness: number; // percentage
+  consistency: number; // percentage
+  freshnessDays: number;
+  missingFieldsCount: number;
+  unassignedTasksCount: number;
+  dealsMissingExpectedClose: number;
+  checks: DataQualityCheck[];
+  recommendations: string[];
+}
+
+export interface RevenueDiagnosis {
+  overallPaceStatus: 'AHEAD' | 'ON TRACK' | 'BEHIND' | 'CRITICAL';
+  paceExplanation: string;
+  currentVsTargetPaceRatio: number; // e.g. 0.763 (76.3%)
+  primaryContributors: {
+    rank: number;
+    title: string;
+    impactAmount: number;
+    impactDescription: string;
+    trend: 'UP' | 'DOWN' | 'STABLE';
+    type: 'POSITIVE' | 'NEGATIVE';
+  }[];
+  recommendedIntervention: string;
+  showWhyDetails: {
+    dataUsed: string[];
+    calculation: string;
+    reasoningSummary: string;
+    confidence: AIConfidence;
+    confidenceExplanation: string;
+  };
+}
+
+export interface CrossSellPath {
+  id: string;
+  fromProduct: ProductId;
+  toProduct: ProductId;
+  targetSegment: string;
+  conversionAffinity: number; // percentage e.g. 28%
+  revenuePotential: number; // in Rupiah
+  rationale: string;
+  tacticalTrigger: string;
+}
+
+export interface CrossSellIntelligence {
+  activeCustomerBase: number;
+  crossSellEligibleCustomers: number;
+  totalAddressableRevenue: number;
+  topPaths: CrossSellPath[];
+  recommendedCampaign: string;
+}
+
+export interface B2BDealIntelligence {
+  totalPipelineValue: number;
+  weightedPipelineValue: number;
+  hotDeals: B2BDeal[]; // high probability and active
+  stalledDeals: B2BDeal[]; // high value but no movement
+  highValueDeals: B2BDeal[]; // value >= 30M
+  highProbabilityDeals: B2BDeal[]; // prob >= 0.7
+  lowProbabilityDeals: B2BDeal[]; // prob < 0.4
+  closingStrategicAdvice: string;
+  projectedWonRevenue: number;
+}
+
+export interface GoalIntelligenceItem {
+  goal: Goal;
+  expectedPacePercentage: number;
+  variancePercentage: number; // actual vs expected pace
+  forecastValue: number;
+  yearEndProjectedStatus: GoalStatus;
+  aiExplanation: string;
+  keyLever: string;
+}
+
+export interface AIAgent {
+  id: string;
+  role: string; // 'CEO' | 'CFO' | 'CMO' | 'SALES' | 'PRODUCT' | 'CONTENT' | 'RESEARCH' | 'OPERATIONS'
+  name: string;
+  department: string;
+  avatar: string;
+  mission: string;
+  status: 'ACTIVE' | 'ANALYZING' | 'IDLE';
+  currentFocus: string;
+  activeDirectives: string[];
+  recentInsight: string;
+  confidence: AIConfidence;
+  lastRunTime: string;
+}
+
+export interface ConversationTurn {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  structuredResponse?: {
+    answer: string;
+    why: string;
+    whatToDo: string;
+    expectedImpact: string;
+    confidence: AIConfidence;
+    confidenceExplanation: string;
+    sourceFacts: string[];
+    actionableTaskDraft?: ActionableTaskDraft;
+  };
+}
+

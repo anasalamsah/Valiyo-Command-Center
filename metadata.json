@@ -1,0 +1,7 @@
+{
+  "name": "Valiyo OS",
+  "description": "Internal Command Center & Executive Decision Operating System for Valiyo Digital Education Ecosystem",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
