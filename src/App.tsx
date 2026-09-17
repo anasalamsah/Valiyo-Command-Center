@@ -45,7 +45,8 @@ import {
   Transaction,
   Expense,
   Employee,
-  Freelancer
+  Freelancer,
+  MonthlyReferralRecap
 } from './types.js';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 
@@ -77,6 +78,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [freelancers, setFreelancers] = useState<Freelancer[]>([]);
+  const [monthlyReferralRecaps, setMonthlyReferralRecaps] = useState<MonthlyReferralRecap[]>([]);
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [customersCount, setCustomersCount] = useState(60);
   const [transactionsCount, setTransactionsCount] = useState(110);
@@ -140,6 +142,7 @@ export default function App() {
       if (data.expenses) setExpenses(data.expenses);
       if (data.employees) setEmployees(data.employees);
       if (data.freelancers) setFreelancers(data.freelancers);
+      if (data.monthlyReferralRecaps) setMonthlyReferralRecaps(data.monthlyReferralRecaps);
       if (data.isDemoMode !== undefined) setIsDemoMode(data.isDemoMode);
       setCustomersCount(data.customersCount || (data.customers ? data.customers.length : 0));
       setTransactionsCount(data.transactionsCount || (data.transactions ? data.transactions.length : 0));
@@ -673,6 +676,7 @@ export default function App() {
               employees={employees}
               freelancers={freelancers}
               transactions={transactions}
+              monthlyReferralRecaps={monthlyReferralRecaps}
               onRefresh={fetchState}
               onOpenQuickAdd={handleOpenQuickAdd}
               onRecordSpending={async (spendingData) => {

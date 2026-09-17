@@ -21,15 +21,18 @@ import {
   X,
   CreditCard,
   Building2,
-  ExternalLink
+  ExternalLink,
+  Clock
 } from 'lucide-react';
-import { Employee, Freelancer, Transaction } from '../types.js';
+import { Employee, Freelancer, Transaction, MonthlyReferralRecap } from '../types.js';
 import { formatRupiah, formatRupiahCompact } from '../utils/formatters.js';
+import { MonthlyReferralRecapView } from './MonthlyReferralRecapView.js';
 
 interface TeamTalentViewProps {
   employees: Employee[];
   freelancers: Freelancer[];
   transactions: Transaction[];
+  monthlyReferralRecaps?: MonthlyReferralRecap[];
   onRefresh: () => void;
   onOpenQuickAdd?: (defaultTab?: string) => void;
   onRecordSpending?: (data: { title: string; category: string; amount: number; recipient: string; notes: string }) => void;
@@ -39,11 +42,12 @@ export const TeamTalentView: React.FC<TeamTalentViewProps> = ({
   employees,
   freelancers,
   transactions,
+  monthlyReferralRecaps = [],
   onRefresh,
   onOpenQuickAdd,
   onRecordSpending
 }) => {
-  const [activeTab, setActiveTab] = useState<'employees' | 'freelancers'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'freelancers' | 'referral-recap'>('employees');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -418,6 +422,18 @@ export const TeamTalentView: React.FC<TeamTalentViewProps> = ({
             <Tag className="h-4 w-4" />
             <span>Freelancer & Kode Referral ({freelancers.length})</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('referral-recap')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'referral-recap'
+                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Calendar className="h-4 w-4" />
+            <span>Rekap Komisi Bulanan (Auto-Spend)</span>
+          </button>
         </div>
 
         <div className="relative w-full sm:w-64">
@@ -728,6 +744,44 @@ export const TeamTalentView: React.FC<TeamTalentViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* TAB 3: REKAP KOMISI REFERRAL BULANAN (AUTO-SPEND) */}
+      {activeTab === 'referral-recap' && (
+        <MonthlyReferralRecapView
+          recaps={monthlyReferralRecaps}
+          transactions={transactions}
+          freelancers={freelancers}
+          onRefresh={async () => {
+            onRefresh();
+          }}
+          onSettlePayout={async (period, freelancerCode, notes) => {
+            const res = await fetch('/api/referrals/payouts/settle', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                period,
+                freelancerCode,
+                paymentDate: new Date().toISOString().split('T')[0],
+                notes: notes || undefined
+              })
+            });
+            if (!res.ok) throw new Error('Gagal mencatat pembayaran komisi');
+            onRefresh();
+          }}
+          onRevertPayout={async (period, freelancerCode) => {
+            const res = await fetch('/api/referrals/payouts/revert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                period,
+                freelancerCode
+              })
+            });
+            if (!res.ok) throw new Error('Gagal mengembalikan status komisi');
+            onRefresh();
+          }}
+        />
       )}
 
       {/* MODAL: TAMBAH / EDIT KARYAWAN */}
